@@ -2,8 +2,8 @@ allprojects  {
   apply plugin: 'maven'
   apply plugin: 'maven-publish'
 
-  group = 'io.moquette'
-  version = '0.13-SNAPSHOT'
+  group = 'one.leftshift.moquette'
+  version = '0.13.0-SNAPSHOT'
 }
 
 buildscript {
@@ -102,11 +102,11 @@ subprojects {
     user = System.getenv('BINTRAY_USER')
     key = System.getenv('BINTRAY_KEY')
     pkg {
-      repo = 'maven'//"${project.group}"
+      repo = 'maven'
       name = "${project.group}.${project.name}"
-      userOrg = 'andsel'
+      userOrg = 'leftshiftone'
       licenses = ['Apache-2.0']
-      vcsUrl = "https://api.bintray.com/maven/andsel/maven/${project.group}.${project.name}"
+      vcsUrl = "https://api.bintray.com/maven/leftshiftone/moquette/${project.group}.${project.name}"
       publications = ['bintrayPublication']
     }
   }
