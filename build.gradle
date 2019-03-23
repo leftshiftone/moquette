@@ -1,9 +1,9 @@
-allprojects  {
+allprojects {
   apply plugin: 'maven'
   apply plugin: 'maven-publish'
 
-  group = 'io.moquette'
-  version = '0.12.1'
+  group = 'one.leftshift.moquette'
+  version = '0.12.2'
 }
 
 buildscript {
@@ -47,12 +47,12 @@ subprojects {
     classifier = 'tests'
   }
 
-  task javadocJar (type: Jar, dependsOn: javadoc) {
+  task javadocJar(type: Jar, dependsOn: javadoc) {
     classifier = 'javadoc'
     from javadoc.destinationDir
   }
 
-  task sourceJar (type : Jar) {
+  task sourceJar(type: Jar) {
     classifier = 'sources'
     from sourceSets.main.allSource
   }
@@ -66,12 +66,12 @@ subprojects {
   }
 
   dependencies {
-    compile group: 'org.slf4j', name: 'slf4j-api', version:'1.7.5'
+    compile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.5'
 
-    testCompile group: 'junit', name: 'junit', version:'4.8.2'
-    testCompile group: 'org.slf4j', name: 'slf4j-log4j12', version:'1.7.5'
-    testCompile group: 'org.assertj', name: 'assertj-core', version:'2.6.0'
-    testCompile group: 'org.mockito', name: 'mockito-core', version:'1.9.0'
+    testCompile group: 'junit', name: 'junit', version: '4.8.2'
+    testCompile group: 'org.slf4j', name: 'slf4j-log4j12', version: '1.7.5'
+    testCompile group: 'org.assertj', name: 'assertj-core', version: '2.6.0'
+    testCompile group: 'org.mockito', name: 'mockito-core', version: '1.9.0'
     testCompile group: 'org.awaitility', name: 'awaitility', version: '3.0.0'
   }
 
@@ -92,7 +92,7 @@ subprojects {
         from components.java
         groupId "$project.group"
         artifactId "${project.name}"
-        version '0.12.1'
+        version "${project.version}"
       }
     }
   }
@@ -102,11 +102,11 @@ subprojects {
     user = System.getenv('BINTRAY_USER')
     key = System.getenv('BINTRAY_KEY')
     pkg {
-      repo = 'maven'//"${project.group}"
+      repo = 'moquette'
       name = "${project.group}.${project.name}"
-      userOrg = 'andsel'
+      userOrg = 'leftshiftone'
       licenses = ['Apache-2.0']
-      vcsUrl = "https://api.bintray.com/maven/andsel/maven/${project.group}.${project.name}"
+      vcsUrl = "https://github.com/leftshiftone/moquette"
       publications = ['bintrayPublication']
     }
   }
