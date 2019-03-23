@@ -29,19 +29,24 @@ public final class BrokerConstants {
     public static final String HOST_PROPERTY_NAME = "host";
     public static final String DEFAULT_MOQUETTE_STORE_H2_DB_FILENAME = "moquette_store.h2";
     public static final String DEFAULT_PERSISTENT_PATH = System.getProperty("user.dir") + File.separator
-            + DEFAULT_MOQUETTE_STORE_H2_DB_FILENAME;
+        + DEFAULT_MOQUETTE_STORE_H2_DB_FILENAME;
     public static final String WEB_SOCKET_PORT_PROPERTY_NAME = "websocket_port";
     public static final String WSS_PORT_PROPERTY_NAME = "secure_websocket_port";
+    public static final String WEB_SOCKET_PATH_PROPERTY_NAME = "websocket_path";
+    public static final String WEB_SOCKET_MAX_FRAME_SIZE_PROPERTY_NAME = "websocket_max_frame_size";
 
     /**
      * Defines the SSL implementation to use, default to "JDK".
+     *
      * @see io.netty.handler.ssl.SslProvider#name()
      */
     public static final String SSL_PROVIDER = "ssl_provider";
     public static final String SSL_PORT_PROPERTY_NAME = "ssl_port";
     public static final String JKS_PATH_PROPERTY_NAME = "jks_path";
 
-    /** @see java.security.KeyStore#getInstance(String) for allowed types, default to "jks" */
+    /**
+     * @see java.security.KeyStore#getInstance(String) for allowed types, default to "jks"
+     */
     public static final String KEY_STORE_TYPE = "key_store_type";
     public static final String KEY_STORE_PASSWORD_PROPERTY_NAME = "key_store_password";
     public static final String KEY_MANAGER_PASSWORD_PROPERTY_NAME = "key_manager_password";
@@ -57,6 +62,7 @@ public final class BrokerConstants {
     public static final String DB_AUTHENTICATOR_DIGEST = "authenticator.db.digest";
     public static final int PORT = 1883;
     public static final int WEBSOCKET_PORT = 8080;
+    public static final String WEBSOCKET_PATH = "/mqtt";
     public static final String DISABLED_PORT_BIND = "disabled";
     public static final String HOST = "0.0.0.0";
     public static final String NEED_CLIENT_AUTH = "need_client_auth";
