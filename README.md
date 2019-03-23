@@ -76,6 +76,7 @@ Include dependency in your project:
 After a git clone of the repository, cd into the cloned sources and: `./gradlew clean moquette-distribution:distMoquetteTar` or
 `./gradlew clean moquette-distribution:distMoquetteZip`.
 
+Release with: `git tag -a -m "Release Tag 0.12.1" v0.12.1 && git push --tags && export BINTRAY_USER=name && export BINTRAY_KEY=api_key && ./gradlew assemble sourceJar javadocJar bintrayUpload`
 
 In distribution/build directory will be produced the selfcontained file for the broker with all dependencies and a running script. 
   
