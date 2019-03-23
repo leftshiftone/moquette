@@ -92,7 +92,7 @@ subprojects {
         from components.java
         groupId "$project.group"
         artifactId "${project.name}"
-        version '0.13-SNAPSHOT'
+        version "${project.version}"
       }
     }
   }
