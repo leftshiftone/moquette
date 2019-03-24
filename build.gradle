@@ -3,7 +3,7 @@ allprojects  {
   apply plugin: 'maven-publish'
 
   group = 'one.leftshift.moquette'
-  version = '0.13.0-SNAPSHOT'
+  version = '0.13.0'
 }
 
 buildscript {
@@ -88,28 +88,50 @@ subprojects {
   // publication to maven repo
   publishing {
     publications {
-      bintrayPublication(MavenPublication) {
+      mavenJava(MavenPublication) {
+        artifactId = project.name
         from components.java
         artifact sourceJar
         artifact javadocJar
-        groupId "$project.group"
-        artifactId "${project.name}"
-        version "${project.version}"
+        pom.withXml {
+          Node root = asNode()
+          root.appendNode("name", "Moquette Broker")
+          root.appendNode("description", "Moquette MQTT Broker")
+          root.appendNode("url", "https://github.com/leftshiftone/moquette")
+
+          Node licenses = root.appendNode("licenses")
+          Node license = licenses.appendNode("license")
+          license.appendNode("name", "The Apache License, Version 2.0")
+          license.appendNode("url", "http://www.apache.org/licenses/LICENSE-2.0.txt")
+          
+          Node developers = root.appendNode("developers")
+          Node developer = developers.appendNode("developer")
+          developer.appendNode("id", "leftshiftone")
+          developer.appendNode("name", "Leftshift One")
+          developer.appendNode("email", "contact@leftshift.one")
+          developer.appendNode("organization", "Leftshift One Software GmbH")
+          developer.appendNode("organizationUrl", "https://www.leftshift.one")
+          
+          Node scm = root.appendNode("scm")
+          scm.appendNode("connection", "scm:git:git://github.com/leftshiftone/moquette.git")
+          scm.appendNode("developerConnection", "scm:git:ssh://github.com:leftshiftone/moquette.git")
+          scm.appendNode("url", "https://github.com/leftshiftone/moquette")
+        }
       }
     }
   }
 
   bintray {
-    println "Bintray deploy with user [${System.getenv('BINTRAY_USER')}] while working on ${project.name}"
+    logger.info "Bintray deploy with user [${System.getenv('BINTRAY_USER')}] while working on ${project.name}"
     user = System.getenv('BINTRAY_USER')
     key = System.getenv('BINTRAY_KEY')
     pkg {
-      repo = 'maven'
+      repo = 'moquette'
       name = "${project.group}.${project.name}"
       userOrg = 'leftshiftone'
       licenses = ['Apache-2.0']
       vcsUrl = "https://api.bintray.com/maven/leftshiftone/moquette/${project.group}.${project.name}"
-      publications = ['bintrayPublication']
+      publications = ['mavenJava']
     }
   }
 }
