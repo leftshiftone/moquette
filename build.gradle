@@ -128,9 +128,9 @@ subprojects {
     pkg {
       repo = 'moquette'
       name = "${project.group}.${project.name}"
-      userOrg = 'leftshiftone'
-      licenses = ['Apache-2.0']
-      vcsUrl = "https://api.bintray.com/maven/leftshiftone/moquette/${project.group}.${project.name}"
+      userOrg = "leftshiftone"
+      licenses = ["Apache-2.0"]
+      vcsUrl = "https://github.com/leftshiftone/moquette.git"
       publications = ['mavenJava']
     }
   }
