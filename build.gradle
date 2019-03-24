@@ -84,23 +84,50 @@ subprojects {
     }
   }
 
+  def pomConfig = {
+    licenses {
+      license {
+        name = "The Apache License, Version 2.0"
+        url = "http://www.apache.org/licenses/LICENSE-2.0.txt"
+      }
+    }
+    developers {
+      developer {
+        id = "leftshiftone"
+        name = "Leftshift One"
+        email = "contact@leftshift.one"
+        organization = "Leftshift One Software GmbH"
+        organizationUrl = "https://www.leftshift.one"
+      }
+    }
+    scm {
+      connection = "scm:git:git://github.com/leftshiftone/moquette.git"
+      developerConnection = "scm:git:ssh://github.com:leftshiftone/moquette.git"
+      url = "https://github.com/leftshiftone/moquette"
+    }
+  }
   // Deploy set environment variables and run ./gradlew bintrayUpload
   // publication to maven repo
   publishing {
     publications {
-      bintrayPublication(MavenPublication) {
+      mavenJava(MavenPublication) {
+        artifactId = project.name
         from components.java
         artifact sourceJar
         artifact javadocJar
-        groupId "$project.group"
-        artifactId "${project.name}"
-        version "${project.version}"
+        pom.withXml {
+          def root = asNode()          
+          root.appendNode("name", "Moquette Broker")
+          root.appendNode("description", "Moquette MQTT Broker")
+          root.appendNode("url", "https://github.com/leftshiftone/moquette")
+          root.children().last() + pomConfig
+        }
       }
     }
   }
 
   bintray {
-    println "Bintray deploy with user [${System.getenv('BINTRAY_USER')}] while working on ${project.name}"
+    logger.info "Bintray deploy with user [${System.getenv('BINTRAY_USER')}] while working on ${project.name}"
     user = System.getenv('BINTRAY_USER')
     key = System.getenv('BINTRAY_KEY')
     pkg {
@@ -109,7 +136,7 @@ subprojects {
       userOrg = 'leftshiftone'
       licenses = ['Apache-2.0']
       vcsUrl = "https://api.bintray.com/maven/leftshiftone/moquette/${project.group}.${project.name}"
-      publications = ['bintrayPublication']
+      publications = ['mavenJava']
     }
   }
 }
