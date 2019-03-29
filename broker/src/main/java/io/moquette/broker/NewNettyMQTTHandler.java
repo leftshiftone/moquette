@@ -24,8 +24,6 @@ import io.netty.util.ReferenceCountUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-
 import static io.netty.channel.ChannelFutureListener.CLOSE_ON_FAILURE;
 
 @Sharable
@@ -56,15 +54,9 @@ public class NewNettyMQTTHandler extends ChannelInboundHandlerAdapter {
         final MQTTConnection mqttConnection = mqttConnection(ctx.channel());
         try {
             mqttConnection.handleMessage(msg);
-        } catch (Throwable ex) {
-            //ctx.fireExceptionCaught(ex);
+        } catch (Exception ex) {
             LOG.error("Error processing protocol message: {}", msg.fixedHeader().messageType(), ex);
-            ctx.channel().close().addListener(new ChannelFutureListener() {
-                @Override
-                public void operationComplete(ChannelFuture future) {
-                    LOG.info("Closed client channel due to exception in processing");
-                }
-            });
+            ctx.channel().close().addListener((ChannelFutureListener) future -> LOG.info("Closed client channel due to exception in processing"));
         } finally {
             ReferenceCountUtil.release(msg);
         }
@@ -91,9 +83,6 @@ public class NewNettyMQTTHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelWritabilityChanged(ChannelHandlerContext ctx) {
-//        if (ctx.channel().isWritable()) {
-//            m_processor.notifyChannelWritable(ctx.channel());
-//        }
         final MQTTConnection mqttConnection = mqttConnection(ctx.channel());
         mqttConnection.writabilityChanged();
         ctx.fireChannelWritabilityChanged();

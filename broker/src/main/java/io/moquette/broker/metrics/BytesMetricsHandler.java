@@ -30,10 +30,10 @@ public class BytesMetricsHandler extends ChannelDuplexHandler {
 
     private static final AttributeKey<BytesMetrics> ATTR_KEY_METRICS = AttributeKey.valueOf("BytesMetrics");
 
-    private BytesMetricsCollector m_collector;
+    private BytesMetricsCollector byteMetricsCollector;
 
     public BytesMetricsHandler(BytesMetricsCollector collector) {
-        m_collector = collector;
+        byteMetricsCollector = collector;
     }
 
     @Override
@@ -61,8 +61,8 @@ public class BytesMetricsHandler extends ChannelDuplexHandler {
     @Override
     public void close(ChannelHandlerContext ctx, ChannelPromise promise) throws Exception {
         BytesMetrics metrics = ctx.channel().attr(ATTR_KEY_METRICS).get();
-        m_collector.sumReadBytes(metrics.readBytes());
-        m_collector.sumWroteBytes(metrics.wroteBytes());
+        byteMetricsCollector.sumReadBytes(metrics.readBytes());
+        byteMetricsCollector.sumWroteBytes(metrics.wroteBytes());
         super.close(ctx, promise);
     }
 

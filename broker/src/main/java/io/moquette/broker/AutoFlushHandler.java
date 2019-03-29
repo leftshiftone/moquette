@@ -68,10 +68,6 @@ public class AutoFlushHandler extends ChannelDuplexHandler {
 
     @Override
     public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
-        // Initialize early if channel is active already.
-//        if (ctx.channel().isActive()) {
-//            initialize(ctx);
-//        }
         super.channelRegistered(ctx);
     }
 
@@ -80,7 +76,6 @@ public class AutoFlushHandler extends ChannelDuplexHandler {
         // This method will be invoked only if this handler was added
         // before channelActive() event is fired. If a user adds this handler
         // after the channelActive() event, initialize() will be called by beforeAdd().
-//        initialize(ctx);
         super.channelActive(ctx);
     }
 
@@ -126,7 +121,6 @@ public class AutoFlushHandler extends ChannelDuplexHandler {
      * @param ctx the channel context.
      */
     private void channelIdle(ChannelHandlerContext ctx) {
-        // ctx.fireUserEventTriggered(evt);
         if (LOG.isTraceEnabled()) {
             LOG.trace("Flushing idle Netty channel {} Cid: {}", ctx.channel(), NettyUtils.clientID(ctx.channel()));
         }
@@ -146,22 +140,14 @@ public class AutoFlushHandler extends ChannelDuplexHandler {
             if (!ctx.channel().isOpen()) {
                 return;
             }
-
-            // long lastWriteTime = IdleStateHandler.this.lastWriteTime;
-            // long lastWriteTime = lastWriteTime;
             long nextDelay = writerIdleTimeNanos - (System.nanoTime() - lastWriteTime);
             if (nextDelay <= 0) {
                 // Writer is idle - set a new timeout and notify the callback.
                 writerIdleTimeout = ctx.executor().schedule(this, writerIdleTimeNanos, TimeUnit.NANOSECONDS);
                 try {
-                    /*
-                     * IdleStateEvent event; if (firstWriterIdleEvent) { firstWriterIdleEvent =
-                     * false; event = IdleStateEvent.FIRST_WRITER_IDLE_STATE_EVENT; } else { event =
-                     * IdleStateEvent.WRITER_IDLE_STATE_EVENT; }
-                     */
                     channelIdle(ctx/* , event */);
-                } catch (Throwable t) {
-                    ctx.fireExceptionCaught(t);
+                } catch (Exception ex) {
+                    ctx.fireExceptionCaught(ex);
                 }
             } else {
                 // Write occurred before the timeout - set a new timeout with shorter delay.
