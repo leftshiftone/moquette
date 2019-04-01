@@ -16,7 +16,7 @@
 package io.moquette.broker;
 
 import io.moquette.broker.subscriptions.Topic;
-import io.moquette.broker.security.IAuthorizatorPolicy;
+import io.moquette.broker.security.IAuthorizationPolicy;
 import io.netty.handler.codec.mqtt.MqttQoS;
 import io.netty.handler.codec.mqtt.MqttSubscribeMessage;
 import io.netty.handler.codec.mqtt.MqttTopicSubscription;
@@ -33,9 +33,9 @@ final class Authorizator {
 
     private static final Logger LOG = LoggerFactory.getLogger(Authorizator.class);
 
-    private final IAuthorizatorPolicy policy;
+    private final IAuthorizationPolicy policy;
 
-    Authorizator(IAuthorizatorPolicy policy) {
+    Authorizator(IAuthorizationPolicy policy) {
         this.policy = policy;
     }
 

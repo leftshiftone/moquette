@@ -15,7 +15,7 @@
  */
 package io.moquette.broker;
 
-import io.moquette.broker.security.PermitAllAuthorizatorPolicy;
+import io.moquette.broker.security.PermitAllAuthorizationPolicy;
 import io.moquette.broker.subscriptions.CTrieSubscriptionDirectory;
 import io.moquette.broker.subscriptions.ISubscriptionsDirectory;
 import io.moquette.broker.security.IAuthenticator;
@@ -70,7 +70,7 @@ public class MQTTConnectionPublishTest {
         subscriptions.init(subscriptionsRepository);
         queueRepository = new MemoryQueueRepository();
 
-        final PermitAllAuthorizatorPolicy authorizatorPolicy = new PermitAllAuthorizatorPolicy();
+        final PermitAllAuthorizationPolicy authorizatorPolicy = new PermitAllAuthorizationPolicy();
         final Authorizator permitAll = new Authorizator(authorizatorPolicy);
         sessionRegistry = new SessionRegistry(subscriptions, queueRepository, permitAll);
         final PostOffice postOffice = new PostOffice(subscriptions,

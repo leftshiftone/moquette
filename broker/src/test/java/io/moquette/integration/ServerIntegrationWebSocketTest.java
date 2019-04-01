@@ -16,21 +16,23 @@
 
 package io.moquette.integration;
 
-import io.moquette.broker.Server;
 import io.moquette.BrokerConstants;
+import io.moquette.broker.MoquetteServer;
+import io.moquette.broker.config.IConfig;
 import io.moquette.broker.config.MemoryConfig;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
-import io.moquette.broker.config.IConfig;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
 import java.net.URI;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+
 import static org.junit.Assert.assertTrue;
 
 /**
@@ -40,17 +42,19 @@ public class ServerIntegrationWebSocketTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(ServerIntegrationWebSocketTest.class);
 
-    Server m_server;
+    MoquetteServer m_server;
     WebSocketClient client;
     IConfig m_config;
 
     protected void startServer() throws IOException {
-        m_server = new Server();
         final Properties configProps = IntegrationUtils.prepareTestProperties();
         configProps
-                .put(BrokerConstants.WEB_SOCKET_PORT_PROPERTY_NAME, Integer.toString(BrokerConstants.WEBSOCKET_PORT));
+            .put(BrokerConstants.WEB_SOCKET_PORT_PROPERTY_NAME, Integer.toString(BrokerConstants.WEBSOCKET_PORT));
         m_config = new MemoryConfig(configProps);
-        m_server.startServer(m_config);
+        m_server = MoquetteServer.builder()
+            .withConfiguration(m_config)
+            .build();
+        m_server.start();
     }
 
     @Before
@@ -62,7 +66,7 @@ public class ServerIntegrationWebSocketTest {
     @After
     public void tearDown() throws Exception {
         client.stop();
-        m_server.stopServer();
+        m_server.stop();
         IntegrationUtils.clearTestStorage();
     }
 

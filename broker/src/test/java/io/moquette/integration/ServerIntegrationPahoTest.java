@@ -16,7 +16,7 @@
 
 package io.moquette.integration;
 
-import io.moquette.broker.Server;
+import io.moquette.broker.MoquetteServer;
 import io.moquette.broker.config.IConfig;
 import io.moquette.broker.config.MemoryConfig;
 import org.eclipse.paho.client.mqttv3.*;
@@ -24,6 +24,7 @@ import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence;
 import org.junit.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.Properties;
@@ -38,7 +39,7 @@ public class ServerIntegrationPahoTest {
     static MqttClientPersistence s_dataStore;
     static MqttClientPersistence s_pubDataStore;
 
-    Server m_server;
+    MoquetteServer m_server;
     IMqttClient m_client;
     IMqttClient m_publisher;
     MessageCollector m_messagesCollector;
@@ -52,10 +53,12 @@ public class ServerIntegrationPahoTest {
     }
 
     protected void startServer() throws IOException {
-        m_server = new Server();
         final Properties configProps = IntegrationUtils.prepareTestProperties();
         m_config = new MemoryConfig(configProps);
-        m_server.startServer(m_config);
+        m_server = MoquetteServer.builder()
+            .withConfiguration(m_config)
+            .build();
+        m_server.start();
     }
 
     @Before
@@ -85,7 +88,7 @@ public class ServerIntegrationPahoTest {
     }
 
     private void stopServer() {
-        m_server.stopServer();
+        m_server.stop();
     }
 
     @Ignore("This test hasn't any meaning using in memory storage service")
@@ -98,9 +101,12 @@ public class ServerIntegrationPahoTest {
         m_client.subscribe("/topic", 0);
         m_client.disconnect();
 
-        m_server.stopServer();
+        m_server.stop();
 
-        m_server.startServer(IntegrationUtils.prepareTestProperties());
+        m_server = MoquetteServer.builder()
+            .withConfiguration(IntegrationUtils.prepareTestProperties())
+            .build();
+        m_server.start();
 
         // reconnect and publish
         m_client.connect(options);
@@ -165,7 +171,7 @@ public class ServerIntegrationPahoTest {
         clientForSubscribe1.subscribe("topic", 0);
 
         // integration stop
-        m_server.stopServer();
+        m_server.stop();
         System.out.println("\n\n SEVER REBOOTING \n\n");
         // integration start
         startServer();

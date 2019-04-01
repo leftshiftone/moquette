@@ -16,39 +16,25 @@
 
 package io.moquette.integration;
 
-import io.moquette.broker.Server;
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.junit.Assert.assertFalse;
+import io.moquette.BrokerConstants;
+import io.moquette.broker.MoquetteServer;
+import org.eclipse.paho.client.mqttv3.*;
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
+import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence;
+import org.junit.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import javax.net.ssl.*;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.security.KeyManagementException;
-import java.security.KeyStore;
-import java.security.KeyStoreException;
-import java.security.NoSuchAlgorithmException;
-import java.security.UnrecoverableKeyException;
+import java.security.*;
 import java.security.cert.CertificateException;
 import java.util.Properties;
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSocketFactory;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.TrustManagerFactory;
-import io.moquette.BrokerConstants;
-import org.eclipse.paho.client.mqttv3.IMqttClient;
-import org.eclipse.paho.client.mqttv3.MqttClient;
-import org.eclipse.paho.client.mqttv3.MqttClientPersistence;
-import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
-import org.eclipse.paho.client.mqttv3.MqttMessage;
-import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
-import org.eclipse.paho.client.mqttv3.persist.MqttDefaultFilePersistence;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.junit.Assert.assertFalse;
 
 /**
  * Check that Moquette could also handle SSL.
@@ -57,7 +43,7 @@ public class ServerIntegrationSSLTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(ServerIntegrationSSLTest.class);
 
-    Server m_server;
+    MoquetteServer server;
     static MqttClientPersistence s_dataStore;
 
     IMqttClient m_client;
@@ -83,7 +69,7 @@ public class ServerIntegrationSSLTest {
     protected void startServer() throws IOException {
         String file = getClass().getResource("/").getPath();
         System.setProperty("moquette.path", file);
-        m_server = new Server();
+
 
         Properties sslProps = new Properties();
         sslProps.put(BrokerConstants.SSL_PORT_PROPERTY_NAME, "8883");
@@ -91,7 +77,11 @@ public class ServerIntegrationSSLTest {
         sslProps.put(BrokerConstants.KEY_STORE_PASSWORD_PROPERTY_NAME, "passw0rdsrv");
         sslProps.put(BrokerConstants.KEY_MANAGER_PASSWORD_PROPERTY_NAME, "passw0rdsrv");
         sslProps.put(BrokerConstants.PERSISTENT_STORE_PROPERTY_NAME, IntegrationUtils.localH2MvStoreDBPath());
-        m_server.startServer(sslProps);
+
+        server = MoquetteServer.builder()
+            .withConfiguration(sslProps)
+            .build();
+        server.start();
     }
 
     @Before
@@ -115,8 +105,8 @@ public class ServerIntegrationSSLTest {
             m_client.disconnect();
         }
 
-        if (m_server != null) {
-            m_server.stopServer();
+        if (server != null) {
+            server.stop();
         }
         IntegrationUtils.clearTestStorage();
     }

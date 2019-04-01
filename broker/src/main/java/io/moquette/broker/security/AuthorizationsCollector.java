@@ -27,7 +27,7 @@ import java.util.*;
  *
  * Not thread safe.
  */
-class AuthorizationsCollector implements IAuthorizatorPolicy {
+class AuthorizationsCollector implements IAuthorizationPolicy {
 
     private List<Authorization> m_globalAuthorizations = new ArrayList<>();
     private List<Authorization> m_patternAuthorizations = new ArrayList<>();

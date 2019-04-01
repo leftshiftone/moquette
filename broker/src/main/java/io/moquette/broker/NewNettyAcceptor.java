@@ -83,8 +83,7 @@ class NewNettyAcceptor {
     private Class<? extends ServerSocketChannel> channelClass;
 
     NewNettyAcceptor(INettyChannelPipelineConfigurer pipelineConfigurer) {
-        this.pipelineConfigurer = pipelineConfigurer == null ? new INettyChannelPipelineConfigurer() {
-        } : pipelineConfigurer;
+        this.pipelineConfigurer = pipelineConfigurer == null ? INettyChannelPipelineConfigurer.DEFAULT : pipelineConfigurer;
     }
 
     public void initialize(NewNettyMQTTHandler mqttHandler, IConfig props, ISslContextCreator sslCtxCreator) {

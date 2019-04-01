@@ -16,34 +16,42 @@
 package io.moquette.broker;
 
 import io.moquette.BrokerConstants;
-import io.moquette.broker.config.*;
-import io.moquette.interception.InterceptHandler;
-import io.moquette.persistence.H2Builder;
-import io.moquette.persistence.MemorySubscriptionsRepository;
-import io.moquette.interception.BrokerInterceptor;
+import io.moquette.broker.config.IConfig;
+import io.moquette.broker.config.INettyChannelPipelineConfigurer;
+import io.moquette.broker.config.IResourceLoader;
+import io.moquette.broker.exception.IExceptionHandler;
 import io.moquette.broker.security.*;
 import io.moquette.broker.subscriptions.CTrieSubscriptionDirectory;
 import io.moquette.broker.subscriptions.ISubscriptionsDirectory;
-import io.moquette.broker.security.IAuthenticator;
-import io.moquette.broker.security.IAuthorizatorPolicy;
+import io.moquette.interception.BrokerInterceptor;
+import io.moquette.interception.InterceptHandler;
+import io.moquette.persistence.H2Builder;
+import io.moquette.persistence.MemorySubscriptionsRepository;
 import io.netty.handler.codec.mqtt.MqttPublishMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.text.ParseException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 import static io.moquette.logging.LoggingUtils.getInterceptorIds;
 
-public class Server {
+class Server implements MoquetteServer {
 
     private static final Logger LOG = LoggerFactory.getLogger(io.moquette.broker.Server.class);
-
+    private final List<InterceptHandler> interceptors = new ArrayList<>();
+    private final IConfig configuration;
+    private final INettyChannelPipelineConfigurer pipelineConfigurer;
+    private final IExceptionHandler exceptionHandler;
+    private final ISslContextCreator sslCtxCreator;
+    private final IAuthenticator authenticator;
+    private final IAuthorizationPolicy authorizationPolicy;
     private ScheduledExecutorService scheduler;
     private NewNettyAcceptor acceptor;
     private volatile boolean initialized;
@@ -52,94 +60,55 @@ public class Server {
     private H2Builder h2Builder;
     private SessionRegistry sessions;
 
-    public static void main(String[] args) throws IOException {
-        final Server server = new Server();
-        server.startServer();
+
+    Server(IConfig configuration, INettyChannelPipelineConfigurer pipelineConfigurer,
+           IExceptionHandler exceptionHandler, ISslContextCreator sslCtxCreator,
+           IAuthenticator authenticator, IAuthorizationPolicy authorizationPolicy) {
+        this.configuration = configuration;
+        this.pipelineConfigurer = pipelineConfigurer;
+        this.exceptionHandler = exceptionHandler;
+        this.sslCtxCreator = sslCtxCreator;
+        this.authenticator = authenticator;
+        this.authorizationPolicy = authorizationPolicy;
+    }
+
+    public static void main(String[] args) {
+        MoquetteServer server = MoquetteServer.defaultConfiguration();
         System.out.println("Server started, version 0.14.0-SNAPSHOT");
         //Bind a shutdown hook
-        Runtime.getRuntime().addShutdownHook(new Thread(server::stopServer));
+        Runtime.getRuntime().addShutdownHook(new Thread(server::stop));
     }
 
-    /**
-     * Starts Moquette bringing the configuration from the file located at m_config/moquette.conf
-     *
-     * @throws IOException in case of any IO error.
-     */
-    public void startServer() throws IOException {
-        File defaultConfigurationFile = defaultConfigFile();
-        LOG.info("Starting Moquette integration. Configuration file path={}", defaultConfigurationFile.getAbsolutePath());
-        IResourceLoader filesystemLoader = new FileResourceLoader(defaultConfigurationFile);
-        final IConfig config = new ResourceLoaderConfig(filesystemLoader);
-        startServer(config);
+    @Override
+    public void start() {
+        this.startServer(this.configuration, this.interceptors, this.sslCtxCreator, this.authenticator, this.authorizationPolicy,
+            this.pipelineConfigurer);
     }
 
-    private static File defaultConfigFile() {
-        String configPath = System.getProperty("moquette.path", null);
-        return new File(configPath, IConfig.DEFAULT_CONFIG);
+    @Override
+    public void stop() {
+        if (!initialized) {
+            throw new IllegalStateException("server is not started thus it can be stopped");
+        }
+        LOG.info("Unbinding integration from the configured ports");
+        acceptor.close();
+        LOG.trace("Stopping MQTT protocol processor");
+        initialized = false;
+
+        // calling shutdown() does not actually stop tasks that are not cancelled,
+        // and SessionsRepository does not stop its tasks. Thus shutdownNow().
+        scheduler.shutdownNow();
+
+        if (h2Builder != null) {
+            LOG.trace("Shutting down H2 persistence {}");
+            h2Builder.closeStore();
+        }
+
+        LOG.info("Moquette integration has been stopped.");
     }
 
-    /**
-     * Starts Moquette bringing the configuration from the given file
-     *
-     * @param configFile text file that contains the configuration.
-     * @throws IOException in case of any IO Error.
-     */
-    public void startServer(File configFile) throws IOException {
-        LOG.info("Starting Moquette integration. Configuration file path: {}", configFile.getAbsolutePath());
-        IResourceLoader filesystemLoader = new FileResourceLoader(configFile);
-        final IConfig config = new ResourceLoaderConfig(filesystemLoader);
-        startServer(config);
-    }
-
-    /**
-     * Starts the integration with the given properties.
-     * <p>
-     * Its suggested to at least have the following properties:
-     * <ul>
-     *  <li>port</li>
-     *  <li>password_file</li>
-     * </ul>
-     *
-     * @param configProps the properties map to use as configuration.
-     * @throws IOException in case of any IO Error.
-     */
-    public void startServer(Properties configProps) throws IOException {
-        LOG.debug("Starting Moquette integration using properties object");
-        final IConfig config = new MemoryConfig(configProps);
-        startServer(config);
-    }
-
-    /**
-     * Starts Moquette bringing the configuration files from the given Config implementation.
-     *
-     * @param config the configuration to use to start the broker.
-     * @throws IOException in case of any IO Error.
-     */
-    public void startServer(IConfig config) throws IOException {
-        LOG.debug("Starting Moquette integration using IConfig instance");
-        startServer(config, null);
-    }
-
-    /**
-     * Starts Moquette with config provided by an implementation of IConfig class and with the set
-     * of InterceptHandler.
-     *
-     * @param config   the configuration to use to start the broker.
-     * @param handlers the handlers to install in the broker.
-     * @throws IOException in case of any IO Error.
-     */
-    public void startServer(IConfig config, List<? extends InterceptHandler> handlers) throws IOException {
-        LOG.debug("Starting moquette integration using IConfig instance and intercept handlers");
-        startServer(config, handlers, null, null, null);
-    }
-
-    public void startServer(IConfig config, List<? extends InterceptHandler> handlers, ISslContextCreator sslCtxCreator,
-                            IAuthenticator authenticator, IAuthorizatorPolicy authorizatorPolicy) {
-        startServer(config, handlers, sslCtxCreator, authenticator, authorizatorPolicy, null);
-    }
-
-    public void startServer(IConfig config, List<? extends InterceptHandler> handlers, ISslContextCreator sslCtxCreator,
-                            IAuthenticator authenticator, IAuthorizatorPolicy authorizatorPolicy, INettyChannelPipelineConfigurer pipelineConfigurer) {
+    private void startServer(IConfig config, List<? extends InterceptHandler> handlers, ISslContextCreator sslCtxCreator,
+                             IAuthenticator authenticator, IAuthorizationPolicy authorizationPolicy, INettyChannelPipelineConfigurer pipelineConfigurer) {
         final long start = System.currentTimeMillis();
         if (handlers == null) {
             handlers = Collections.emptyList();
@@ -161,7 +130,7 @@ public class Server {
             sslCtxCreator = new DefaultMoquetteSslContextCreator(config);
         }
         authenticator = initializeAuthenticator(authenticator, config);
-        authorizatorPolicy = initializeAuthorizatorPolicy(authorizatorPolicy, config);
+        authorizationPolicy = initializeAuthorizatorPolicy(authorizationPolicy, config);
 
         final ISubscriptionsRepository subscriptionsRepository;
         final IQueueRepository queueRepository;
@@ -181,12 +150,12 @@ public class Server {
 
         ISubscriptionsDirectory subscriptions = new CTrieSubscriptionDirectory();
         subscriptions.init(subscriptionsRepository);
-        final Authorizator authorizator = new Authorizator(authorizatorPolicy);
+        final Authorizator authorizator = new Authorizator(authorizationPolicy);
         sessions = new SessionRegistry(subscriptions, queueRepository, authorizator);
         dispatcher = new PostOffice(subscriptions, retainedRepository, sessions, interceptor, authorizator);
         final BrokerConfiguration brokerConfig = new BrokerConfiguration(config);
         MQTTConnectionFactory connectionFactory = new MQTTConnectionFactory(brokerConfig, authenticator, sessions,
-                                                                            dispatcher);
+            dispatcher);
 
         final NewNettyMQTTHandler mqttHandler = new NewNettyMQTTHandler(connectionFactory);
         acceptor = new NewNettyAcceptor(pipelineConfigurer);
@@ -197,17 +166,17 @@ public class Server {
         initialized = true;
     }
 
-    private IAuthorizatorPolicy initializeAuthorizatorPolicy(IAuthorizatorPolicy authorizatorPolicy, IConfig props) {
+    private IAuthorizationPolicy initializeAuthorizatorPolicy(IAuthorizationPolicy authorizatorPolicy, IConfig props) {
         LOG.debug("Configuring MQTT authorizator policy");
         String authorizatorClassName = props.getProperty(BrokerConstants.AUTHORIZATOR_CLASS_NAME, "");
         if (authorizatorPolicy == null && !authorizatorClassName.isEmpty()) {
-            authorizatorPolicy = loadClass(authorizatorClassName, IAuthorizatorPolicy.class, IConfig.class, props);
+            authorizatorPolicy = loadClass(authorizatorClassName, IAuthorizationPolicy.class, IConfig.class, props);
         }
 
         if (authorizatorPolicy == null) {
             String aclFilePath = props.getProperty(BrokerConstants.ACL_FILE_PROPERTY_NAME, "");
             if (aclFilePath != null && !aclFilePath.isEmpty()) {
-                authorizatorPolicy = new DenyAllAuthorizatorPolicy();
+                authorizatorPolicy = new DenyAllAuthorizationPolicy();
                 try {
                     LOG.info("Parsing ACL file. Path = {}", aclFilePath);
                     IResourceLoader resourceLoader = props.getResourceLoader();
@@ -216,7 +185,7 @@ public class Server {
                     LOG.error("Unable to parse ACL file. path = {}", aclFilePath, pex);
                 }
             } else {
-                authorizatorPolicy = new PermitAllAuthorizatorPolicy();
+                authorizatorPolicy = new PermitAllAuthorizationPolicy();
             }
             LOG.info("Authorizator policy {} instance will be used", authorizatorPolicy.getClass().getName());
         }
@@ -251,7 +220,7 @@ public class Server {
         String interceptorClassName = props.getProperty(BrokerConstants.INTERCEPT_HANDLER_PROPERTY_NAME);
         if (interceptorClassName != null && !interceptorClassName.isEmpty()) {
             InterceptHandler handler = loadClass(interceptorClassName, InterceptHandler.class,
-                                                 io.moquette.broker.Server.class, this);
+                io.moquette.broker.Server.class, this);
             if (handler != null) {
                 observers.add(handler);
             }
@@ -266,7 +235,7 @@ public class Server {
             // check if constructor with constructor arg class parameter
             // exists
             LOG.info("Invoking constructor with {} argument. ClassName={}, interfaceName={}",
-                     constructorArgClass.getName(), className, intrface.getName());
+                constructorArgClass.getName(), className, intrface.getName());
             instance = this.getClass().getClassLoader()
                 .loadClass(className)
                 .asSubclass(intrface)
@@ -274,8 +243,8 @@ public class Server {
                 .newInstance(props);
         } catch (InstantiationException | IllegalAccessException | ClassNotFoundException ex) {
             LOG.warn("Unable to invoke constructor with {} argument. ClassName={}, interfaceName={}, cause={}, " +
-                     "errorMessage={}", constructorArgClass.getName(), className, intrface.getName(), ex.getCause(),
-                     ex.getMessage());
+                    "errorMessage={}", constructorArgClass.getName(), className, intrface.getName(), ex.getCause(),
+                ex.getMessage());
             return null;
         } catch (NoSuchMethodException | InvocationTargetException e) {
             try {
@@ -288,7 +257,7 @@ public class Server {
             } catch (InstantiationException | IllegalAccessException | ClassNotFoundException |
                 NoSuchMethodException | InvocationTargetException ex) {
                 LOG.error("Unable to invoke default constructor. ClassName={}, interfaceName={}, cause={}, " +
-                          "errorMessage={}", className, intrface.getName(), ex.getCause(), ex.getMessage());
+                    "errorMessage={}", className, intrface.getName(), ex.getCause(), ex.getMessage());
                 return null;
             }
         }
@@ -308,29 +277,11 @@ public class Server {
         final int messageID = msg.variableHeader().packetId();
         if (!initialized) {
             LOG.error("Moquette is not started, internal message cannot be published. CId: {}, messageId: {}", clientId,
-                      messageID);
+                messageID);
             throw new IllegalStateException("Can't publish on a integration is not yet started");
         }
         LOG.trace("Internal publishing message CId: {}, messageId: {}", clientId, messageID);
         dispatcher.internalPublish(msg);
-    }
-
-    public void stopServer() {
-        LOG.info("Unbinding integration from the configured ports");
-        acceptor.close();
-        LOG.trace("Stopping MQTT protocol processor");
-        initialized = false;
-
-        // calling shutdown() does not actually stop tasks that are not cancelled,
-        // and SessionsRepository does not stop its tasks. Thus shutdownNow().
-        scheduler.shutdownNow();
-
-        if (h2Builder != null) {
-            LOG.trace("Shutting down H2 persistence {}");
-            h2Builder.closeStore();
-        }
-
-        LOG.info("Moquette integration has been stopped.");
     }
 
     public int getPort() {
@@ -355,39 +306,10 @@ public class Server {
 //        return this.subscriptionsStore.listAllSubscriptions();
 //    }
 
-    /**
-     * SPI method used by Broker embedded applications to add intercept handlers.
-     *
-     * @param interceptHandler the handler to add.
-     */
-    public void addInterceptHandler(InterceptHandler interceptHandler) {
-        if (!initialized) {
-            LOG.error("Moquette is not started, MQTT message interceptor cannot be added. InterceptorId={}",
-                interceptHandler.getID());
-            throw new IllegalStateException("Can't register interceptors on a integration that is not yet started");
-        }
-        LOG.info("Adding MQTT message interceptor. InterceptorId={}", interceptHandler.getID());
-        interceptor.addInterceptHandler(interceptHandler);
-    }
-
-    /**
-     * SPI method used by Broker embedded applications to remove intercept handlers.
-     *
-     * @param interceptHandler the handler to remove.
-     */
-    public void removeInterceptHandler(InterceptHandler interceptHandler) {
-        if (!initialized) {
-            LOG.error("Moquette is not started, MQTT message interceptor cannot be removed. InterceptorId={}",
-                interceptHandler.getID());
-            throw new IllegalStateException("Can't deregister interceptors from a integration that is not yet started");
-        }
-        LOG.info("Removing MQTT message interceptor. InterceptorId={}", interceptHandler.getID());
-        interceptor.removeInterceptHandler(interceptHandler);
-    }
 
     /**
      * Return a list of descriptors of connected clients.
-     * */
+     */
     public Collection<ClientDescriptor> listConnectedClients() {
         return sessions.listConnectedClients();
     }

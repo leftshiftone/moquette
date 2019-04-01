@@ -16,7 +16,7 @@
 
 package io.moquette.integration;
 
-import io.moquette.broker.Server;
+import io.moquette.broker.MoquetteServer;
 import io.moquette.broker.config.IConfig;
 import io.moquette.broker.config.MemoryConfig;
 import org.eclipse.paho.client.mqttv3.*;
@@ -25,6 +25,7 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.Properties;
@@ -39,17 +40,19 @@ public class ServerIntegrationRestartTest {
     static MqttClientPersistence s_pubDataStore;
     static MqttConnectOptions CLEAN_SESSION_OPT = new MqttConnectOptions();
 
-    Server m_server;
+    MoquetteServer m_server;
     IMqttClient m_subscriber;
     IMqttClient m_publisher;
     IConfig m_config;
     MessageCollector m_messageCollector;
 
     protected void startServer() throws IOException {
-        m_server = new Server();
         final Properties configProps = IntegrationUtils.prepareTestProperties();
         m_config = new MemoryConfig(configProps);
-        m_server.startServer(m_config);
+        m_server = MoquetteServer.builder()
+            .withConfiguration(m_config)
+            .build();
+        m_server.start();
     }
 
     @BeforeClass
@@ -81,7 +84,7 @@ public class ServerIntegrationRestartTest {
             m_publisher.disconnect();
         }
 
-        m_server.stopServer();
+        m_server.stop();
 
         IntegrationUtils.clearTestStorage();
     }
@@ -94,10 +97,13 @@ public class ServerIntegrationRestartTest {
         m_subscriber.disconnect();
 
         // shutdown the integration
-        m_server.stopServer();
+        m_server.stop();
 
         // restart the integration
-        m_server.startServer(IntegrationUtils.prepareTestProperties());
+        m_server = MoquetteServer.builder()
+            .withConfiguration(IntegrationUtils.prepareTestProperties())
+            .build();
+        m_server.start();
 
         // reconnect the Subscriber subscribing to the same /topic but different QoS
         m_subscriber.connect(CLEAN_SESSION_OPT);
@@ -120,10 +126,13 @@ public class ServerIntegrationRestartTest {
         conn.disconnect();
 
         // shutdown the integration
-        m_server.stopServer();
+        m_server.stop();
 
         // restart the integration
-        m_server.startServer(IntegrationUtils.prepareTestProperties());
+        m_server = MoquetteServer.builder()
+            .withConfiguration(IntegrationUtils.prepareTestProperties())
+            .build();
+        m_server.start();
 
         m_publisher.connect();
         m_publisher.publish("/topic", "Hello world MQTT!!".getBytes(UTF_8), 0, false);
@@ -140,10 +149,13 @@ public class ServerIntegrationRestartTest {
         m_subscriber.disconnect();
 
         // shutdown the integration
-        m_server.stopServer();
+        m_server.stop();
 
         // restart the integration
-        m_server.startServer(IntegrationUtils.prepareTestProperties());
+        m_server = MoquetteServer.builder()
+            .withConfiguration(IntegrationUtils.prepareTestProperties())
+            .build();
+        m_server.start();
         // subscriber reconnects
         m_subscriber = new MqttClient("tcp://localhost:1883", "Subscriber", s_dataStore);
         m_subscriber.setCallback(m_messageCollector);

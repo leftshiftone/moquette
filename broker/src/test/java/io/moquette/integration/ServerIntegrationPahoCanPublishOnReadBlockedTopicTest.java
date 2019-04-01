@@ -17,12 +17,12 @@
 package io.moquette.integration;
 
 import io.moquette.BrokerConstants;
+import io.moquette.broker.MoquetteServer;
 import io.moquette.broker.config.IConfig;
 import io.moquette.broker.config.MemoryConfig;
-import io.moquette.broker.Server;
 import io.moquette.broker.security.AcceptAllAuthenticator;
+import io.moquette.broker.security.IAuthorizationPolicy;
 import io.moquette.broker.subscriptions.Topic;
-import io.moquette.broker.security.IAuthorizatorPolicy;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.mqtt.MqttMessageBuilders;
 import io.netty.handler.codec.mqtt.MqttPublishMessage;
@@ -40,8 +40,6 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Properties;
 
-
-import static io.moquette.broker.ConnectionTestUtils.*;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.*;
 
@@ -53,7 +51,7 @@ public class ServerIntegrationPahoCanPublishOnReadBlockedTopicTest {
     static MqttClientPersistence s_dataStore;
     static MqttClientPersistence s_pubDataStore;
 
-    Server m_server;
+    MoquetteServer m_server;
     IMqttClient m_client;
     IMqttClient m_publisher;
     MessageCollector m_messagesCollector;
@@ -68,13 +66,12 @@ public class ServerIntegrationPahoCanPublishOnReadBlockedTopicTest {
     }
 
     protected void startServer() throws IOException {
-        m_server = new Server();
         final Properties configProps = IntegrationUtils.prepareTestProperties();
         configProps.setProperty(BrokerConstants.REAUTHORIZE_SUBSCRIPTIONS_ON_CONNECT, "true");
         m_config = new MemoryConfig(configProps);
         canRead = true;
 
-        final IAuthorizatorPolicy switchingAuthorizator = new IAuthorizatorPolicy() {
+        final IAuthorizationPolicy switchingAuthorizator = new IAuthorizationPolicy() {
 //            int callCount = 0;
             @Override
             public boolean canWrite(Topic topic, String user, String client) {
@@ -86,8 +83,12 @@ public class ServerIntegrationPahoCanPublishOnReadBlockedTopicTest {
                 return canRead;
             }
         };
-
-        m_server.startServer(m_config, EMPTY_OBSERVERS, null, new AcceptAllAuthenticator(), switchingAuthorizator);
+        m_server = MoquetteServer.builder()
+            .withConfiguration(m_config)
+            .withAuthenticator(new AcceptAllAuthenticator())
+            .withAuthorizationPolicy(switchingAuthorizator)
+            .build();
+        m_server.start();
     }
 
     @Before
@@ -115,7 +116,7 @@ public class ServerIntegrationPahoCanPublishOnReadBlockedTopicTest {
     }
 
     private void stopServer() {
-        m_server.stopServer();
+        m_server.stop();
     }
 
     // TODO move this functional test into unit/integration

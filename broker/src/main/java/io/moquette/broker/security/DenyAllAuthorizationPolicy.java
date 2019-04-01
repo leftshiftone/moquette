@@ -18,7 +18,7 @@ package io.moquette.broker.security;
 
 import io.moquette.broker.subscriptions.Topic;
 
-public class DenyAllAuthorizatorPolicy implements IAuthorizatorPolicy {
+public class DenyAllAuthorizationPolicy implements IAuthorizationPolicy {
 
     @Override
     public boolean canRead(Topic topic, String user, String client) {

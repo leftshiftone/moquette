@@ -29,7 +29,7 @@ public class ResourceLoaderConfig extends IConfig {
 
     private static final Logger LOG = LoggerFactory.getLogger(ResourceLoaderConfig.class);
 
-    private final Properties m_properties;
+    private final Properties properties;
     private final IResourceLoader resourceLoader;
 
     public ResourceLoaderConfig(IResourceLoader resourceLoader) {
@@ -65,7 +65,7 @@ public class ResourceLoaderConfig extends IConfig {
                 resourceLoader.getName(),
                 configName);
         ConfigurationParser confParser = new ConfigurationParser();
-        m_properties = confParser.getProperties();
+        properties = confParser.getProperties();
         assignDefaults();
         try {
             confParser.parse(configReader);
@@ -82,17 +82,17 @@ public class ResourceLoaderConfig extends IConfig {
 
     @Override
     public void setProperty(String name, String value) {
-        m_properties.setProperty(name, value);
+        properties.setProperty(name, value);
     }
 
     @Override
     public String getProperty(String name) {
-        return m_properties.getProperty(name);
+        return properties.getProperty(name);
     }
 
     @Override
     public String getProperty(String name, String defaultValue) {
-        return m_properties.getProperty(name, defaultValue);
+        return properties.getProperty(name, defaultValue);
     }
 
     @Override

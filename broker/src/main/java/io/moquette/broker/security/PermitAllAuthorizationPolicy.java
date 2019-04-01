@@ -18,7 +18,7 @@ package io.moquette.broker.security;
 
 import io.moquette.broker.subscriptions.Topic;
 
-public class PermitAllAuthorizatorPolicy implements IAuthorizatorPolicy {
+public class PermitAllAuthorizationPolicy implements IAuthorizationPolicy {
 
     @Override
     public boolean canWrite(Topic topic, String user, String client) {

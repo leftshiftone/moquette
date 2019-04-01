@@ -84,6 +84,7 @@ public final class BrokerInterceptor implements Interceptor {
             LOG.info("Waiting for thread pool tasks to terminate...");
             executor.awaitTermination(10L, TimeUnit.SECONDS);
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
         if (!executor.isTerminated()) {
             LOG.warn("Forcing shutdown of interceptor thread pool...");

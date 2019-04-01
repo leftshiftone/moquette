@@ -2,8 +2,9 @@ package io.moquette.broker.config;
 
 import io.netty.channel.ChannelPipeline;
 
+@FunctionalInterface
 public interface INettyChannelPipelineConfigurer {
 
-    default void configure(ChannelPipeline pipeline) {
-    }
+    INettyChannelPipelineConfigurer DEFAULT = (pipeline -> {});
+    void configure(ChannelPipeline pipeline);
 }

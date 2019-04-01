@@ -17,11 +17,9 @@
 package io.moquette.integration;
 
 import io.moquette.BrokerConstants;
-import io.moquette.broker.Server;
-import io.moquette.broker.config.IConfig;
-import io.moquette.broker.config.MemoryConfig;
+import io.moquette.broker.MoquetteServer;
 import io.moquette.broker.security.IAuthenticator;
-import io.moquette.broker.security.IAuthorizatorPolicy;
+import io.moquette.broker.security.IAuthorizationPolicy;
 import io.moquette.broker.subscriptions.Topic;
 import org.junit.After;
 import org.junit.Test;
@@ -31,20 +29,20 @@ import java.util.Properties;
 
 import static org.junit.Assert.assertTrue;
 
-public class ConfigurationClassLoaderTest implements IAuthenticator, IAuthorizatorPolicy {
+public class ConfigurationClassLoaderTest implements IAuthenticator, IAuthorizationPolicy {
 
-    Server m_server;
-    IConfig m_config;
+    MoquetteServer server;
 
     protected void startServer(Properties props) throws IOException {
-        m_server = new Server();
-        m_config = new MemoryConfig(props);
-        m_server.startServer(m_config);
+        server = MoquetteServer.builder()
+            .withConfiguration(props)
+            .build();
+        server.start();
     }
 
     @After
     public void tearDown() {
-        m_server.stopServer();
+        server.stop();
     }
 
     @Test

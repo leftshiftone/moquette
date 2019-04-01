@@ -15,7 +15,7 @@
  */
 package io.moquette.broker;
 
-import io.moquette.broker.security.PermitAllAuthorizatorPolicy;
+import io.moquette.broker.security.PermitAllAuthorizationPolicy;
 import io.moquette.broker.subscriptions.CTrieSubscriptionDirectory;
 import io.moquette.broker.subscriptions.ISubscriptionsDirectory;
 import io.moquette.broker.subscriptions.Subscription;
@@ -92,7 +92,7 @@ public class PostOfficePublishTest {
         retainedRepository = new MemoryRetainedRepository();
         queueRepository = new MemoryQueueRepository();
 
-        final PermitAllAuthorizatorPolicy authorizatorPolicy = new PermitAllAuthorizatorPolicy();
+        final PermitAllAuthorizationPolicy authorizatorPolicy = new PermitAllAuthorizationPolicy();
         final Authorizator permitAll = new Authorizator(authorizatorPolicy);
         SessionRegistry sessionRegistry = new SessionRegistry(subscriptions, queueRepository, permitAll);
         sut = new PostOffice(subscriptions, retainedRepository, sessionRegistry,

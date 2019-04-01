@@ -16,12 +16,8 @@
 
 package io.moquette.spec.v3_1_1.connection;
 
-import io.moquette.broker.Server;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import java.io.File;
-import java.io.IOException;
 import io.moquette.BrokerConstants;
+import io.moquette.broker.MoquetteServer;
 import io.moquette.integration.IntegrationUtils;
 import io.moquette.testclient.RawClient;
 import org.junit.After;
@@ -29,13 +25,19 @@ import org.junit.Before;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import java.io.File;
+import java.io.IOException;
+
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
 public class ConnectionIT {
 
-    Server m_server;
+    MoquetteServer m_server;
 
     protected void startServer() throws IOException {
-        m_server = new Server();
-        m_server.startServer();
+        m_server = MoquetteServer.defaultConfiguration();
+        m_server.start();
     }
 
     @Before
@@ -45,7 +47,7 @@ public class ConnectionIT {
 
     @After
     public void tearDown() throws Exception {
-        m_server.stopServer();
+        m_server.stop();
 
         File dbFile = new File(BrokerConstants.DEFAULT_PERSISTENT_PATH);
         if (dbFile.exists()) {

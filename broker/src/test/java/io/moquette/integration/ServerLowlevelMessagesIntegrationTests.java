@@ -16,23 +16,26 @@
 
 package io.moquette.integration;
 
-import io.moquette.broker.Server;
+import io.moquette.broker.MoquetteServer;
 import io.moquette.broker.config.IConfig;
 import io.moquette.broker.config.MemoryConfig;
 import io.moquette.testclient.Client;
 import io.netty.handler.codec.mqtt.*;
-import io.netty.handler.codec.mqtt.MqttMessage;
-import org.eclipse.paho.client.mqttv3.*;
+import org.awaitility.Awaitility;
+import org.eclipse.paho.client.mqttv3.IMqttClient;
+import org.eclipse.paho.client.mqttv3.MqttClient;
+import org.eclipse.paho.client.mqttv3.MqttClientPersistence;
+import org.eclipse.paho.client.mqttv3.MqttException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.awaitility.Awaitility;
-import java.io.IOException;
+
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
-import static io.netty.handler.codec.mqtt.MqttConnectReturnCode.*;
+
+import static io.netty.handler.codec.mqtt.MqttConnectReturnCode.CONNECTION_REFUSED_IDENTIFIER_REJECTED;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.*;
 
@@ -40,18 +43,20 @@ public class ServerLowlevelMessagesIntegrationTests {
 
     private static final Logger LOG = LoggerFactory.getLogger(ServerLowlevelMessagesIntegrationTests.class);
     static MqttClientPersistence s_dataStore;
-    Server m_server;
+    MoquetteServer m_server;
     Client m_client;
     IMqttClient m_willSubscriber;
     MessageCollector m_messageCollector;
     IConfig m_config;
     MqttMessage receivedMsg;
 
-    protected void startServer() throws IOException {
-        m_server = new Server();
+    protected void startServer() {
         final Properties configProps = IntegrationUtils.prepareTestProperties();
         m_config = new MemoryConfig(configProps);
-        m_server.startServer(m_config);
+        m_server = MoquetteServer.builder()
+            .withConfiguration(m_config)
+            .build();
+        m_server.start();
     }
 
     @Before
@@ -68,7 +73,7 @@ public class ServerLowlevelMessagesIntegrationTests {
         m_client.close();
         LOG.debug("After raw client close");
         Thread.sleep(300); // to let the close event pass before integration stop event
-        m_server.stopServer();
+        m_server.stop();
         LOG.debug("After asked integration to stop");
     }
 

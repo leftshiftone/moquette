@@ -16,59 +16,56 @@
 
 package io.moquette.integration;
 
-import io.moquette.broker.config.IConfig;
-import io.moquette.broker.config.MemoryConfig;
-import io.moquette.broker.Server;
+import io.moquette.broker.MoquetteServer;
 import org.fusesource.mqtt.client.*;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
-import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 
 public class ServerIntegrationFuseTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(ServerIntegrationPahoTest.class);
 
-    Server m_server;
-    MQTT m_mqtt;
-    BlockingConnection m_subscriber;
-    BlockingConnection m_publisher;
-    IConfig m_config;
+    MoquetteServer server;
+    MQTT mqtt;
+    BlockingConnection subscriber;
+    BlockingConnection publisher;
 
     protected void startServer() throws IOException {
-        m_server = new Server();
-        final Properties configProps = IntegrationUtils.prepareTestProperties();
-        m_config = new MemoryConfig(configProps);
-        m_server.startServer(m_config);
+        this.server = MoquetteServer.builder()
+            .withConfiguration(IntegrationUtils.prepareTestProperties())
+            .build();
+        this.server.start();
     }
 
     @Before
     public void setUp() throws Exception {
         startServer();
 
-        m_mqtt = new MQTT();
-        m_mqtt.setHost("localhost", 1883);
+        mqtt = new MQTT();
+        mqtt.setHost("localhost", 1883);
     }
 
     @After
     public void tearDown() throws Exception {
-        if (m_subscriber != null) {
-            m_subscriber.disconnect();
+        if (subscriber != null) {
+            subscriber.disconnect();
         }
 
-        if (m_publisher != null) {
-            m_publisher.disconnect();
+        if (publisher != null) {
+            publisher.disconnect();
         }
 
-        m_server.stopServer();
-
+        server.stop();
         IntegrationUtils.clearTestStorage();
     }
 
@@ -85,22 +82,22 @@ public class ServerIntegrationFuseTest {
         mqtt.setWillRetain(false);
         mqtt.setWillMessage(willTestamentMsg);
         mqtt.setWillTopic(willTestamentTopic);
-        m_publisher = mqtt.blockingConnection();
-        m_publisher.connect();
+        publisher = mqtt.blockingConnection();
+        publisher.connect();
 
-        m_mqtt.setHost("localhost", 1883);
-        m_mqtt.setCleanSession(false);
-        m_mqtt.setClientId("Subscriber");
-        m_subscriber = m_mqtt.blockingConnection();
-        m_subscriber.connect();
+        this.mqtt.setHost("localhost", 1883);
+        this.mqtt.setCleanSession(false);
+        this.mqtt.setClientId("Subscriber");
+        subscriber = this.mqtt.blockingConnection();
+        subscriber.connect();
         Topic[] topics = new Topic[]{new Topic(willTestamentTopic, QoS.AT_MOST_ONCE)};
-        m_subscriber.subscribe(topics);
+        subscriber.subscribe(topics);
 
         // Exercise, kill the publisher connection
-        m_publisher.kill();
+        publisher.kill();
 
         // Verify, that the testament is fired
-        Message msg = m_subscriber.receive(1, TimeUnit.SECONDS); // wait the flush interval (1 sec)
+        Message msg = subscriber.receive(1, TimeUnit.SECONDS); // wait the flush interval (1 sec)
         assertNotNull("We should get notified with 'Will' message", msg);
         msg.ack();
         assertEquals(willTestamentMsg, new String(msg.getPayload(), UTF_8));

@@ -15,13 +15,13 @@
  */
 package io.moquette.broker;
 
-import io.moquette.broker.security.PermitAllAuthorizatorPolicy;
+import io.moquette.broker.security.IAuthorizationPolicy;
+import io.moquette.broker.security.PermitAllAuthorizationPolicy;
 import io.moquette.broker.subscriptions.CTrieSubscriptionDirectory;
 import io.moquette.broker.subscriptions.ISubscriptionsDirectory;
 import io.moquette.broker.subscriptions.Subscription;
 import io.moquette.broker.subscriptions.Topic;
 import io.moquette.broker.security.IAuthenticator;
-import io.moquette.broker.security.IAuthorizatorPolicy;
 import io.moquette.persistence.MemorySubscriptionsRepository;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -90,7 +90,7 @@ public class PostOfficeSubscribeTest {
         subscriptions.init(subscriptionsRepository);
         queueRepository = new MemoryQueueRepository();
 
-        final PermitAllAuthorizatorPolicy authorizatorPolicy = new PermitAllAuthorizatorPolicy();
+        final PermitAllAuthorizationPolicy authorizatorPolicy = new PermitAllAuthorizationPolicy();
         final Authorizator permitAll = new Authorizator(authorizatorPolicy);
         sessionRegistry = new SessionRegistry(subscriptions, queueRepository, permitAll);
         sut = new PostOffice(subscriptions, new MemoryRetainedRepository(), sessionRegistry,
@@ -162,7 +162,7 @@ public class PostOfficeSubscribeTest {
     public void testSubscribedToNotAuthorizedTopic() {
         NettyUtils.userName(channel, FAKE_USER_NAME);
 
-        IAuthorizatorPolicy prohibitReadOnNewsTopic = mock(IAuthorizatorPolicy.class);
+        IAuthorizationPolicy prohibitReadOnNewsTopic = mock(IAuthorizationPolicy.class);
         when(prohibitReadOnNewsTopic.canRead(eq(new Topic(NEWS_TOPIC)), eq(FAKE_USER_NAME), eq(FAKE_CLIENT_ID)))
             .thenReturn(false);
 

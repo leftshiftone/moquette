@@ -16,7 +16,7 @@
 
 package io.moquette.integration;
 
-import io.moquette.broker.Server;
+import io.moquette.broker.MoquetteServer;
 import io.moquette.broker.config.IConfig;
 import io.moquette.broker.config.MemoryConfig;
 import org.eclipse.paho.client.mqttv3.IMqttClient;
@@ -39,7 +39,7 @@ public class ServerIntegrationQoSValidationTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(ServerIntegrationPahoTest.class);
 
-    Server m_server;
+    MoquetteServer m_server;
 
     IMqttClient m_subscriber;
     IMqttClient m_publisher;
@@ -47,10 +47,13 @@ public class ServerIntegrationQoSValidationTest {
     IConfig m_config;
 
     protected void startServer() throws IOException {
-        m_server = new Server();
         final Properties configProps = IntegrationUtils.prepareTestProperties();
         m_config = new MemoryConfig(configProps);
-        m_server.startServer(m_config);
+        m_server = MoquetteServer.builder()
+            .withConfiguration(m_config)
+            .build();
+
+        m_server.start();
     }
 
     @Before
@@ -76,7 +79,7 @@ public class ServerIntegrationQoSValidationTest {
             m_subscriber.disconnect();
         }
 
-        m_server.stopServer();
+        m_server.stop();
         IntegrationUtils.clearTestStorage();
     }
 
