@@ -273,6 +273,7 @@ class Server implements MoquetteServer {
      * @param clientId the id of the sending integration.
      * @throws IllegalStateException if the integration is not yet started
      */
+    @Override
     public void internalPublish(MqttPublishMessage msg, final String clientId) {
         final int messageID = msg.variableHeader().packetId();
         if (!initialized) {
@@ -284,10 +285,12 @@ class Server implements MoquetteServer {
         dispatcher.internalPublish(msg);
     }
 
+    @Override
     public int getPort() {
         return acceptor.getPort();
     }
 
+    @Override
     public int getSslPort() {
         return acceptor.getSslPort();
     }
@@ -310,6 +313,7 @@ class Server implements MoquetteServer {
     /**
      * Return a list of descriptors of connected clients.
      */
+    @Override
     public Collection<ClientDescriptor> listConnectedClients() {
         return sessions.listConnectedClients();
     }
