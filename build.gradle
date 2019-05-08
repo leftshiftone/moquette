@@ -125,6 +125,7 @@ subprojects {
     logger.info "Bintray deploy with user [${System.getenv('BINTRAY_USER')}] while working on ${project.name}"
     user = System.getenv('BINTRAY_USER')
     key = System.getenv('BINTRAY_KEY')
+    publish = true
     pkg {
       repo = 'moquette'
       name = "${project.group}.${project.name}"
