@@ -38,6 +38,7 @@ import io.netty.handler.codec.http.HttpRequestDecoder;
 import io.netty.handler.codec.http.HttpResponseEncoder;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
+import io.netty.handler.codec.http.websocketx.WebSocketFrameAggregator;
 import io.netty.handler.codec.http.websocketx.WebSocketServerProtocolHandler;
 import io.netty.handler.codec.mqtt.MqttDecoder;
 import io.netty.handler.codec.mqtt.MqttEncoder;
@@ -237,6 +238,7 @@ class NewNettyAcceptor {
             pipeline.addLast("aggregator", new HttpObjectAggregator(65536));
             pipeline.addLast("webSocketHandler",
                 new WebSocketServerProtocolHandler(path, MQTT_SUBPROTOCOL_CSV_LIST, false, maxFrameSize));
+            pipeline.addLast("wsFrameAggregator", new WebSocketFrameAggregator(maxFrameSize));
             pipeline.addLast("ws2bytebufDecoder", new WebSocketFrameToByteBufDecoder());
             pipeline.addLast("bytebuf2wsEncoder", new ByteBufToWebSocketFrameEncoder());
             configureMQTTPipeline(pipeline, timeoutHandler, handler);
@@ -291,6 +293,7 @@ class NewNettyAcceptor {
             pipeline.addLast("aggregator", new HttpObjectAggregator(65536));
             pipeline.addLast("webSocketHandler",
                 new WebSocketServerProtocolHandler(path, MQTT_SUBPROTOCOL_CSV_LIST, false, maxFrameSize));
+            pipeline.addLast("wsFrameAggregator", new WebSocketFrameAggregator(maxFrameSize));
             pipeline.addLast("ws2bytebufDecoder", new WebSocketFrameToByteBufDecoder());
             pipeline.addLast("bytebuf2wsEncoder", new ByteBufToWebSocketFrameEncoder());
 
@@ -352,10 +355,9 @@ class NewNettyAcceptor {
     static class WebSocketFrameToByteBufDecoder extends MessageToMessageDecoder<BinaryWebSocketFrame> {
 
         @Override
-        protected void decode(ChannelHandlerContext chc, BinaryWebSocketFrame frame, List<Object> out)
-            throws Exception {
+        protected void decode(ChannelHandlerContext ctx, BinaryWebSocketFrame msg, List<Object> out) throws Exception {
             // convert the frame to a ByteBuf
-            ByteBuf bb = frame.content();
+            ByteBuf bb = msg.content();
             bb.retain();
             out.add(bb);
         }
