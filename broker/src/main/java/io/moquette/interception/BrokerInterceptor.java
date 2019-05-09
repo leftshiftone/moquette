@@ -47,7 +47,7 @@ public final class BrokerInterceptor implements Interceptor {
         LOG.info("Initializing broker interceptor. InterceptorIds={}", getInterceptorIds(handlers));
         this.handlers = new HashMap<>();
         for (Class<?> messageType : InterceptHandler.ALL_MESSAGE_TYPES) {
-            this.handlers.put(messageType, new CopyOnWriteArrayList<InterceptHandler>());
+            this.handlers.put(messageType, new CopyOnWriteArrayList<>());
         }
         for (InterceptHandler handler : handlers) {
             this.addInterceptHandler(handler);
