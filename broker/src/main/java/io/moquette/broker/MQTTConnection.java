@@ -15,8 +15,8 @@
  */
 package io.moquette.broker;
 
-import io.moquette.broker.subscriptions.Topic;
 import io.moquette.broker.security.IAuthenticator;
+import io.moquette.broker.subscriptions.Topic;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -28,7 +28,8 @@ import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.List;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -36,7 +37,8 @@ import static io.netty.channel.ChannelFutureListener.CLOSE_ON_FAILURE;
 import static io.netty.channel.ChannelFutureListener.FIRE_EXCEPTION_ON_FAILURE;
 import static io.netty.handler.codec.mqtt.MqttConnectReturnCode.*;
 import static io.netty.handler.codec.mqtt.MqttMessageIdVariableHeader.from;
-import static io.netty.handler.codec.mqtt.MqttQoS.*;
+import static io.netty.handler.codec.mqtt.MqttQoS.AT_LEAST_ONCE;
+import static io.netty.handler.codec.mqtt.MqttQoS.AT_MOST_ONCE;
 
 final class MQTTConnection {
 
@@ -93,7 +95,7 @@ final class MQTTConnection {
                 break;
             case PINGREQ:
                 MqttFixedHeader pingHeader = new MqttFixedHeader(MqttMessageType.PINGRESP, false, AT_MOST_ONCE,
-                                                                false, 0);
+                    false, 0);
                 MqttMessage pingResp = new MqttMessage(pingHeader);
                 channel.writeAndFlush(pingResp).addListener(CLOSE_ON_FAILURE);
                 break;
@@ -147,7 +149,7 @@ final class MQTTConnection {
 
             if (!cleanSession) {
                 LOG.warn("MQTT client ID cannot be empty for persistent session. Username: {}, channel: {}",
-                         username, channel);
+                    username, channel);
                 abortConnection(CONNECTION_REFUSED_IDENTIFIER_REJECTED);
                 return;
             }
@@ -155,7 +157,7 @@ final class MQTTConnection {
             // Generating client id.
             clientId = UUID.randomUUID().toString().replace("-", "");
             LOG.debug("Client has connected with integration generated id: {}, username: {}, channel: {}", clientId,
-                      username, channel);
+                username, channel);
         }
 
         if (!login(msg, clientId)) {
@@ -263,7 +265,7 @@ final class MQTTConnection {
         connected = false;
         //dispatch connection lost to intercept.
         String userName = NettyUtils.userName(channel);
-        postOffice.dispatchConnectionLost(clientID,userName);
+        postOffice.dispatchConnectionLost(clientID, userName);
         LOG.trace("dispatch disconnection: clientId={}, userName={}", clientID, userName);
     }
 
@@ -293,7 +295,7 @@ final class MQTTConnection {
         channel.close().addListener(FIRE_EXCEPTION_ON_FAILURE);
         LOG.trace("Processed DISCONNECT CId={}, channel: {}", clientID, channel);
         String userName = NettyUtils.userName(channel);
-        postOffice.dispatchDisconnection(clientID,userName);
+        postOffice.dispatchDisconnection(clientID, userName);
         LOG.trace("dispatch disconnection: clientId={}, userName={}", clientID, userName);
     }
 
@@ -337,7 +339,7 @@ final class MQTTConnection {
         final String topicName = msg.variableHeader().topicName();
         final String clientId = getClientId();
         LOG.trace("Processing PUBLISH message. CId={}, topic: {}, messageId: {}, qos: {}", clientId, topicName,
-                  msg.variableHeader().packetId(), qos);
+            msg.variableHeader().packetId(), qos);
         ByteBuf payload = msg.payload();
         final boolean retain = msg.fixedHeader().isRetain();
         final Topic topic = new Topic(topicName);
@@ -373,7 +375,7 @@ final class MQTTConnection {
         MqttFixedHeader fixedHeader = new MqttFixedHeader(MqttMessageType.PUBREC, false, AT_MOST_ONCE,
             false, 0);
         MqttPubAckMessage pubRecMessage = new MqttPubAckMessage(fixedHeader, from(messageID));
-        sendIfWritableElseDrop(pubRecMessage);
+        send(pubRecMessage);
     }
 
     private void processPubRel(MqttMessage msg) {
@@ -390,28 +392,35 @@ final class MQTTConnection {
         MqttQoS qos = publishMsg.fixedHeader().qosLevel();
         if (LOG.isTraceEnabled()) {
             LOG.trace("Sending PUBLISH({}) message. MessageId={}, CId={}, topic={}, payload={}", qos, packetId,
-                      clientId, topicName, DebugUtils.payload2Str(publishMsg.payload()));
+                clientId, topicName, DebugUtils.payload2Str(publishMsg.payload()));
         } else {
             LOG.debug("Sending PUBLISH({}) message. MessageId={}, CId={}, topic={}", qos, packetId, clientId,
-                      topicName);
+                topicName);
         }
-        sendIfWritableElseDrop(publishMsg);
+        send(publishMsg);
     }
 
-    void sendIfWritableElseDrop(MqttMessage msg) {
+    /**
+     * Writes the given {@link MqttMessage} through the netty channel pipeline
+     * If the channel is not currently not writeable (the I/O Thread is busy writing another message) the message
+     * is queued by netty itself and written at a later time.
+     *
+     * @see {@link Channel#isWritable()}
+     *
+     * @param msg
+     */
+    void send(MqttMessage msg) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("OUT {} on channel {}", msg.fixedHeader().messageType(), channel);
         }
-        if (channel.isWritable()) {
-            ChannelFuture channelFuture;
-            if (brokerConfig.isImmediateBufferFlush()) {
-                channelFuture = channel.writeAndFlush(msg);
-            }
-            else {
-                channelFuture = channel.write(msg);
-            }
-            channelFuture.addListener(FIRE_EXCEPTION_ON_FAILURE);
+        ChannelFuture channelFuture;
+        if (brokerConfig.isImmediateBufferFlush()) {
+            channelFuture = channel.writeAndFlush(msg);
+        } else {
+            channelFuture = channel.write(msg);
         }
+        channelFuture.addListener(FIRE_EXCEPTION_ON_FAILURE);
+
     }
 
     public void writabilityChanged() {
@@ -425,16 +434,16 @@ final class MQTTConnection {
     void sendPubAck(int messageID) {
         LOG.trace("sendPubAck invoked");
         MqttFixedHeader fixedHeader = new MqttFixedHeader(MqttMessageType.PUBACK, false, AT_MOST_ONCE,
-                                                  false, 0);
+            false, 0);
         MqttPubAckMessage pubAckMessage = new MqttPubAckMessage(fixedHeader, from(messageID));
-        sendIfWritableElseDrop(pubAckMessage);
+        send(pubAckMessage);
     }
 
     private void sendPubCompMessage(int messageID) {
         LOG.trace("Sending PUBCOMP message on channel: {}, messageId: {}", channel, messageID);
         MqttFixedHeader fixedHeader = new MqttFixedHeader(MqttMessageType.PUBCOMP, false, AT_MOST_ONCE, false, 0);
         MqttMessage pubCompMessage = new MqttMessage(fixedHeader, from(messageID));
-        sendIfWritableElseDrop(pubCompMessage);
+        send(pubCompMessage);
     }
 
     String getClientId() {

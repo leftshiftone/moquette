@@ -184,7 +184,7 @@ class Session {
             inflightWindow.put(pubRelPacketId, new SessionRegistry.PubRelMarker());
             inflightTimeouts.add(new InFlightPacket(pubRelPacketId, FLIGHT_BEFORE_RESEND_MS));
             MqttMessage pubRel = MQTTConnection.pubrel(pubRelPacketId);
-            mqttConnection.sendIfWritableElseDrop(pubRel);
+            mqttConnection.send(pubRel);
 
             drainQueueToConnection();
         } else {
@@ -329,7 +329,7 @@ class Session {
             inflightWindow.put(sendPacketId, msg);
             if (msg instanceof SessionRegistry.PubRelMarker) {
                 MqttMessage pubRel = MQTTConnection.pubrel(sendPacketId);
-                mqttConnection.sendIfWritableElseDrop(pubRel);
+                mqttConnection.send(pubRel);
             } else {
                 final SessionRegistry.PublishedMessage msgPub = (SessionRegistry.PublishedMessage) msg;
                 MqttPublishMessage publishMsg = MQTTConnection.notRetainedPublishWithMessageId(msgPub.topic.toString(),
