@@ -55,7 +55,7 @@ public class Server {
     public static void main(String[] args) throws IOException {
         final Server server = new Server();
         server.startServer();
-        System.out.println("Server started, version 0.14.0-SNAPSHOT");
+        System.out.println("Server started, version 0.15.0-SNAPSHOT");
         //Bind a shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(server::stopServer));
     }
